@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>ร้านสวัสดิการอุทยานแห่งชาติ — POS</title>
+<meta name="description" content="ระบบขายหน้าร้าน (POS) ออฟไลน์ 100% สำหรับร้านสวัสดิการอุทยานแห่งชาติ">
+<meta name="theme-color" content="#143D27">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="POS อุทยาน">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ================= TOP BAR ================= -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none"><path d="M3 20l6-11 4 6 2-3 6 8H3z" fill="#E09E3E"/><circle cx="18" cy="6" r="2.4" fill="#F5EFE1"/></svg>
+      <span class="screen-title" id="screen-title-text">ขายสินค้า</span>
+    </div>
+    <div class="topbar-actions" id="topbar-actions">
+      <!-- populated per screen by app.js -->
+    </div>
+  </header>
+
+  <!-- ================= SCREENS ================= -->
+  <main class="screen-area">
+
+    <!-- ---------- POS / SELL ---------- -->
+    <section class="screen active" id="screen-pos">
+      <div class="price-mode-bar">
+        <span class="label">โหมดราคา</span>
+        <div class="toggle-group small" id="price-mode-toggle" style="width:200px;">
+          <button data-mode="staff" class="active">เจ้าหน้าที่</button>
+          <button data-mode="tourist">นักท่องเที่ยว</button>
+        </div>
+      </div>
+
+      <div class="pos-search-row">
+        <input type="text" class="input" id="pos-search" placeholder="ค้นหาสินค้า / บาร์โค้ด...">
+        <button class="btn btn-primary" id="btn-open-scanner" aria-label="สแกนบาร์โค้ด">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M3 12h18"/></svg>
+        </button>
+      </div>
+
+      <div class="category-chips" id="pos-category-chips"></div>
+
+      <div id="pos-product-grid" class="product-grid"></div>
+      <div id="pos-empty" class="empty-state" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        <div class="t">ไม่พบสินค้า</div>
+        <div>ลองค้นหาคำอื่น หรือเพิ่มสินค้าใหม่ที่เมนู "คลัง"</div>
+      </div>
+    </section>
+
+    <!-- ---------- INVENTORY ---------- -->
+    <section class="screen" id="screen-inventory">
+      <div class="pos-search-row">
+        <input type="text" class="input" id="inv-search" placeholder="ค้นหาสินค้าในคลัง...">
+      </div>
+      <div class="category-chips" id="inv-category-chips"></div>
+      <div class="row-between" style="margin-bottom:6px;">
+        <span class="hint" id="inv-count-label"></span>
+        <label class="hint" style="display:flex;align-items:center;gap:5px;cursor:pointer;">
+          <input type="checkbox" id="inv-low-only"> เฉพาะของใกล้หมด
+        </label>
+      </div>
+      <div id="inv-list"></div>
+      <div id="inv-empty" class="empty-state" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+        <div class="t">ยังไม่มีสินค้าในคลัง</div>
+        <div>แตะปุ่ม + เพื่อเพิ่มสินค้าชิ้นแรก</div>
+      </div>
+    </section>
+
+    <!-- ---------- HISTORY ---------- -->
+    <section class="screen" id="screen-history">
+      <div class="input-row" style="margin-bottom:10px;">
+        <input type="date" class="input" id="hist-date-from">
+        <input type="date" class="input" id="hist-date-to">
+      </div>
+      <div class="category-chips" style="margin-bottom:2px;">
+        <button class="chip active" data-range="today">วันนี้</button>
+        <button class="chip" data-range="week">7 วัน</button>
+        <button class="chip" data-range="month">เดือนนี้</button>
+        <button class="chip" data-range="all">ทั้งหมด</button>
+      </div>
+      <div class="stat-grid" style="margin-top:12px;">
+        <div class="stat-card accent">
+          <div class="lbl">ยอดขายรวม</div>
+          <div class="val" id="hist-sum-total">฿0</div>
+        </div>
+        <div class="stat-card">
+          <div class="lbl">จำนวนบิล</div>
+          <div class="val" id="hist-sum-count">0</div>
+        </div>
+      </div>
+      <div id="hist-list"></div>
+      <div id="hist-empty" class="empty-state" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        <div class="t">ยังไม่มีประวัติการขาย</div>
+        <div>ลองเลือกช่วงวันที่อื่น หรือเริ่มขายสินค้าที่เมนู "ขาย"</div>
+      </div>
+    </section>
+
+    <!-- ---------- REPORTS ---------- -->
+    <section class="screen" id="screen-reports">
+      <div class="card">
+        <div class="section-title" style="margin-top:0;">ช่วงเวลารายงาน</div>
+        <div class="category-chips">
+          <button class="chip active" data-rrange="today">วันนี้</button>
+          <button class="chip" data-rrange="week">7 วัน</button>
+          <button class="chip" data-rrange="month">เดือนนี้</button>
+          <button class="chip" data-rrange="custom">กำหนดเอง</button>
+        </div>
+        <div class="input-row" id="report-custom-range" style="display:none;margin-top:8px;">
+          <input type="date" class="input" id="report-date-from">
+          <input type="date" class="input" id="report-date-to">
+        </div>
+      </div>
+
+      <div class="stat-grid" style="margin-top:14px;">
+        <div class="stat-card accent"><div class="lbl">ยอดขายรวม</div><div class="val" id="rep-total">฿0</div></div>
+        <div class="stat-card"><div class="lbl">จำนวนบิล</div><div class="val" id="rep-count">0</div></div>
+        <div class="stat-card"><div class="lbl">ราคาเจ้าหน้าที่</div><div class="val" id="rep-staff">฿0</div></div>
+        <div class="stat-card"><div class="lbl">ราคานักท่องเที่ยว</div><div class="val" id="rep-tourist">฿0</div></div>
+      </div>
+
+      <div class="section-title">สินค้าขายดี</div>
+      <div class="card" id="rep-top-products"></div>
+
+      <div class="section-title">ส่งออกรายงาน</div>
+      <div class="card">
+        <button class="btn btn-primary btn-block" id="btn-export-pdf" style="margin-bottom:10px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/></svg>
+          สร้างรายงาน PDF
+        </button>
+        <button class="btn btn-ghost btn-block" id="btn-export-excel" style="margin-bottom:10px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 8l8 8M16 8l-8 8"/></svg>
+          ส่งออกตารางขาย (Excel)
+        </button>
+        <button class="btn btn-outline btn-block" id="btn-copy-line">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+          คัดลอกสรุปยอดขาย (ส่ง LINE)
+        </button>
+      </div>
+    </section>
+
+    <!-- ---------- SETTINGS ---------- -->
+    <section class="screen" id="screen-settings">
+      <div class="section-title" style="margin-top:0;">ข้อมูลร้าน</div>
+      <div class="card">
+        <div class="field">
+          <label>ชื่อร้าน</label>
+          <input type="text" class="input" id="set-shop-name" placeholder="ร้านสวัสดิการอุทยานแห่งชาติ...">
+        </div>
+        <div class="field">
+          <label>ที่อยู่ / รายละเอียดเพิ่มเติม</label>
+          <textarea class="input" id="set-shop-address" placeholder="ที่อยู่ร้าน, เบอร์ติดต่อ ฯลฯ"></textarea>
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label>โลโก้ร้าน (แสดงในรายงาน PDF)</label>
+          <div class="photo-input">
+            <img id="set-logo-preview" class="photo-preview" alt="โลโก้">
+            <div class="photo-actions">
+              <label class="btn btn-ghost btn-sm">เลือกรูป<input type="file" accept="image/*" id="set-logo-file" style="display:none;"></label>
+              <button class="btn btn-danger btn-sm" id="set-logo-clear">ลบโลโก้</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">การแจ้งเตือนสต๊อก</div>
+      <div class="card">
+        <div class="field" style="margin-bottom:0;">
+          <label>แจ้งเตือนเมื่อสินค้าเหลือน้อยกว่า (ชิ้น)</label>
+          <input type="number" class="input" id="set-low-stock" min="0" inputmode="numeric">
+        </div>
+      </div>
+
+      <div class="section-title">สำรอง / กู้คืนข้อมูล</div>
+      <div class="card">
+        <p class="hint">แอปนี้เก็บข้อมูลในเครื่อง/เบราว์เซอร์นี้เท่านั้น แนะนำให้สำรองข้อมูลเป็นไฟล์เก็บไว้เป็นระยะ เพื่อป้องกันข้อมูลหายหากล้างเบราว์เซอร์หรือเปลี่ยนเครื่อง</p>
+        <button class="btn btn-primary btn-block" id="btn-backup" style="margin-top:10px;">ดาวน์โหลดไฟล์สำรองข้อมูล</button>
+        <label class="btn btn-ghost btn-block" style="margin-top:10px;">
+          นำเข้าไฟล์สำรองข้อมูล
+          <input type="file" accept="application/json" id="restore-file" style="display:none;">
+        </label>
+      </div>
+
+      <div class="section-title">ล้างข้อมูล</div>
+      <div class="card">
+        <p class="hint">การล้างข้อมูลจะลบสินค้า ประวัติการขายทั้งหมดอย่างถาวร ไม่สามารถกู้คืนได้ (ยกเว้นมีไฟล์สำรองไว้)</p>
+        <button class="btn btn-danger btn-block" id="btn-clear-all" style="margin-top:10px;">ล้างข้อมูลทั้งหมด</button>
+      </div>
+
+      <div class="section-title">เกี่ยวกับแอป</div>
+      <div class="card text-center">
+        <p class="hint">POS ร้านสวัสดิการอุทยานแห่งชาติ<br>ทำงานออฟไลน์ 100% ข้อมูลทั้งหมดอยู่ในเครื่องนี้เท่านั้น<br>เวอร์ชัน 1.0.0</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= CART BAR (POS screen) ================= -->
+  <div class="cart-bar" id="cart-bar" style="display:none;">
+    <div class="mid">
+      <div class="cnt" id="cart-bar-count">0</div>
+      <div class="total" id="cart-bar-total">฿0</div>
+    </div>
+    <div class="cta">
+      ดูตะกร้า
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:16px;height:16px;"><path d="M9 18l6-6-6-6"/></svg>
+    </div>
+  </div>
+
+  <!-- ================= BOTTOM NAV ================= -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-screen="pos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.5 3h2l2.6 12.4a2 2 0 002 1.6h8.8a2 2 0 002-1.6L21 8H6"/></svg>
+      ขาย
+    </button>
+    <button class="nav-btn" data-screen="inventory">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>
+      คลัง
+    </button>
+    <button class="nav-btn" data-screen="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      ประวัติ
+    </button>
+    <button class="nav-btn" data-screen="reports">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2h9l5 5v15H6z"/><path d="M15 2v5h5"/><path d="M9 13h6M9 17h6"/></svg>
+      รายงาน
+    </button>
+    <button class="nav-btn" data-screen="settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.9l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.9-.3 1.7 1.7 0 00-1 1.6V21a2 2 0 01-4 0v-.1a1.7 1.7 0 00-1-1.6 1.7 1.7 0 00-1.9.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.9 1.7 1.7 0 00-1.6-1H3a2 2 0 010-4h.1a1.7 1.7 0 001.6-1 1.7 1.7 0 00-.3-1.9l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.9.3H9a1.7 1.7 0 001-1.6V3a2 2 0 014 0v.1a1.7 1.7 0 001 1.6 1.7 1.7 0 001.9-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.9V9a1.7 1.7 0 001.6 1H21a2 2 0 010 4h-.1a1.7 1.7 0 00-1.6 1z"/></svg>
+      ตั้งค่า
+    </button>
+  </nav>
+
+  <!-- ================= CART SHEET ================= -->
+  <div class="sheet-overlay" id="cart-sheet-overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3>ตะกร้าสินค้า</h3>
+        <button class="icon-btn" data-close-sheet="cart-sheet-overlay" style="background:var(--cream-200);color:var(--forest-800);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body" id="cart-lines"></div>
+      <div class="sheet-footer">
+        <div class="summary-row"><span>จำนวนรายการ</span><span id="cart-total-items">0</span></div>
+        <div class="summary-row total"><span>ยอดรวม</span><span id="cart-total-amount">฿0</span></div>
+        <button class="btn btn-accent btn-block btn-lg" id="btn-go-checkout" style="margin-top:10px;">ชำระเงิน</button>
+        <button class="btn btn-ghost btn-block" id="btn-clear-cart" style="margin-top:8px;">ล้างตะกร้า</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CHECKOUT SHEET ================= -->
+  <div class="sheet-overlay" id="checkout-sheet-overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3>ชำระเงิน</h3>
+        <button class="icon-btn" data-close-sheet="checkout-sheet-overlay" style="background:var(--cream-200);color:var(--forest-800);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body">
+        <div class="change-display" id="checkout-total-display">
+          <div class="lbl">ยอดที่ต้องชำระ</div>
+          <div class="amt" id="checkout-total-amt">฿0</div>
+        </div>
+
+        <div class="toggle-group" id="pay-method-toggle">
+          <button data-pay="cash" class="active">เงินสด</button>
+          <button data-pay="transfer">โอน / พร้อมเพย์</button>
+        </div>
+
+        <div id="cash-pay-block" style="margin-top:14px;">
+          <div class="row-between">
+            <span class="section-title" style="margin:0;">รับเงินมา</span>
+            <button class="btn btn-ghost btn-sm" id="btn-exact-pay">รับพอดี</button>
+          </div>
+          <div class="denom-grid" id="denom-grid"></div>
+          <button class="btn btn-outline btn-block btn-sm" id="btn-clear-denom">ล้างจำนวนเงินที่รับ</button>
+
+          <div class="change-display mt-12" id="change-display">
+            <div class="lbl">เงินทอน</div>
+            <div class="amt" id="change-amt">฿0</div>
+          </div>
+          <div class="hint text-center" id="change-breakdown"></div>
+        </div>
+
+        <div id="transfer-pay-block" style="display:none;margin-top:14px;">
+          <p class="hint">แนบภาพสลิปการโอนเงิน (ไม่บังคับ แต่แนะนำให้แนบเพื่อใช้ตรวจสอบย้อนหลัง)</p>
+          <div class="photo-input mt-8">
+            <img id="slip-preview" class="photo-preview" alt="สลิป">
+            <div class="photo-actions">
+              <label class="btn btn-ghost btn-sm">ถ่าย/แนบสลิป<input type="file" accept="image/*" capture="environment" id="slip-file" style="display:none;"></label>
+              <button class="btn btn-outline btn-sm" id="slip-save-gallery">บันทึกลงอัลบั้ม</button>
+              <button class="btn btn-danger btn-sm" id="slip-clear">ลบสลิป</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="field mt-12" style="margin-bottom:0;">
+          <label>หมายเหตุ (ไม่บังคับ)</label>
+          <input type="text" class="input" id="checkout-note" placeholder="เช่น ลูกค้าประจำ, ทอนล่วงหน้า...">
+        </div>
+      </div>
+      <div class="sheet-footer">
+        <button class="btn btn-accent btn-block btn-lg" id="btn-confirm-sale">ยืนยันการขาย</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SALE COMPLETE MODAL ================= -->
+  <div class="modal-overlay" id="sale-done-modal">
+    <div class="modal text-center">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#2D7A48" stroke-width="2" style="width:52px;height:52px;margin:0 auto 8px;"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg>
+      <h3>บันทึกการขายสำเร็จ</h3>
+      <p class="hint" id="sale-done-summary"></p>
+      <div class="modal-actions" style="flex-wrap:wrap;">
+        <button class="btn btn-ghost" id="btn-print-receipt" style="flex:1 1 45%;">พิมพ์ใบเสร็จ</button>
+        <button class="btn btn-primary" id="btn-sale-done-close" style="flex:1 1 45%;">ขายต่อ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PRODUCT FORM MODAL ================= -->
+  <div class="modal-overlay" id="product-form-modal">
+    <div class="modal">
+      <h3 id="product-form-title">เพิ่มสินค้า</h3>
+      <input type="hidden" id="pf-id">
+      <div class="field">
+        <label>รูปสินค้า</label>
+        <div class="photo-input">
+          <img id="pf-photo-preview" class="photo-preview" alt="สินค้า">
+          <div class="photo-actions">
+            <label class="btn btn-ghost btn-sm">ถ่ายรูป/แนบไฟล์<input type="file" accept="image/*" capture="environment" id="pf-photo-file" style="display:none;"></label>
+            <button class="btn btn-danger btn-sm" id="pf-photo-clear">ลบรูป</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>ชื่อสินค้า <span class="req">*</span></label>
+        <input type="text" class="input" id="pf-name" placeholder="เช่น น้ำดื่ม 600ml">
+      </div>
+      <div class="input-row">
+        <div class="field">
+          <label>หมวดหมู่</label>
+          <input type="text" class="input" id="pf-category" list="category-list" placeholder="เช่น เครื่องดื่ม">
+          <datalist id="category-list"></datalist>
+        </div>
+        <div class="field">
+          <label>หน่วยนับ</label>
+          <input type="text" class="input" id="pf-unit" placeholder="ชิ้น / ขวด / ถุง">
+        </div>
+      </div>
+      <div class="field">
+        <label>บาร์โค้ด</label>
+        <div class="input-with-btn">
+          <input type="text" class="input" id="pf-barcode" placeholder="สแกนหรือพิมพ์รหัสสินค้า">
+          <button class="btn btn-primary" id="pf-scan-barcode" aria-label="สแกนบาร์โค้ด">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;"><path d="M3 7V4h3M21 7V4h-3M3 17v3h3M21 17v3h-3M3 12h18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="input-row">
+        <div class="field">
+          <label>ราคาเจ้าหน้าที่ (฿) <span class="req">*</span></label>
+          <input type="number" class="input" id="pf-price-staff" min="0" step="0.01" inputmode="decimal">
+        </div>
+        <div class="field">
+          <label>ราคานักท่องเที่ยว (฿) <span class="req">*</span></label>
+          <input type="number" class="input" id="pf-price-tourist" min="0" step="0.01" inputmode="decimal">
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>จำนวนคงเหลือในคลัง</label>
+        <input type="number" class="input" id="pf-stock" min="0" step="1" inputmode="numeric">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="pf-cancel">ยกเลิก</button>
+        <button class="btn btn-primary" id="pf-save">บันทึกสินค้า</button>
+      </div>
+      <button class="btn btn-danger btn-block mt-12" id="pf-delete" style="display:none;">ลบสินค้านี้</button>
+    </div>
+  </div>
+
+  <!-- ================= SCANNER MODAL ================= -->
+  <div class="modal-overlay" id="scanner-modal">
+    <div class="modal">
+      <h3>สแกนบาร์โค้ด</h3>
+      <div id="scanner-view"></div>
+      <p class="scanner-hint" id="scanner-hint">เล็งกล้องไปที่บาร์โค้ดสินค้าให้อยู่ในกรอบ</p>
+      <div id="scanner-cart-mini" style="display:none;">
+        <div class="divider"></div>
+        <div class="row-between">
+          <span class="section-title" style="margin:0;">ตะกร้า (<span id="scanner-cart-count">0</span>)</span>
+          <span id="scanner-cart-total" style="font-family:var(--font-display);font-weight:700;color:var(--forest-700);"></span>
+        </div>
+        <div id="scanner-cart-lines" style="max-height:220px;overflow-y:auto;"></div>
+      </div>
+      <button class="btn btn-ghost btn-block mt-12" id="scanner-close">ปิดกล้อง / เสร็จสิ้น</button>
+    </div>
+  </div>
+
+  <!-- ================= SALE DETAIL SHEET ================= -->
+  <div class="sheet-overlay" id="sale-detail-overlay">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="sheet-header">
+        <h3>รายละเอียดการขาย</h3>
+        <button class="icon-btn" data-close-sheet="sale-detail-overlay" style="background:var(--cream-200);color:var(--forest-800);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="sheet-body" id="sale-detail-body"></div>
+      <div class="sheet-footer">
+        <button class="btn btn-outline btn-block" id="btn-download-slip" style="display:none;margin-bottom:8px;">ดาวน์โหลดภาพสลิป + รายละเอียดบิล</button>
+        <button class="btn btn-danger btn-block" id="btn-void-sale">ยกเลิกรายการขายนี้ (คืนสต๊อก)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= GENERIC CONFIRM MODAL ================= -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal text-center">
+      <h3 id="confirm-title">ยืนยันการทำรายการ</h3>
+      <p class="hint" id="confirm-message"></p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="confirm-cancel">ยกเลิก</button>
+        <button class="btn btn-danger" id="confirm-ok">ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast-host"></div>
+  <div class="loading-veil" id="loading-veil"><div class="spinner"></div><span class="hint">กำลังประมวลผล...</span></div>
+  <div id="print-area"></div>
+
+</div>
+
+<!-- Vendored libraries (all local, no CDN — 100% offline) -->
+<script src="js/lib/html5-qrcode.min.js"></script>
+<script src="js/lib/jspdf.umd.min.js"></script>
+<script src="js/lib/jspdf.plugin.autotable.min.js"></script>
+<script src="js/lib/xlsx.full.min.js"></script>
+<script src="js/lib/thai-font.js"></script>
+
+<!-- App -->
+<script src="js/db.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/scanner.js"></script>
+<script src="js/products.js"></script>
+<script src="js/pos.js"></script>
+<script src="js/checkout.js"></script>
+<script src="js/history.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/settings.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
