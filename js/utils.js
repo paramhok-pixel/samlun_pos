@@ -188,29 +188,24 @@
     if (navigator.vibrate) { try { navigator.vibrate(80); } catch (e) {} }
   };
 
-  // ---------- Save an image (dataURL) to the device's photo gallery ----------
-  Utils.saveImageToDevice = async function (dataUrl, filename) {
-    try {
-      const blob = await (await fetch(dataUrl)).blob();
-      const file = new File([blob], filename, { type: blob.type || 'image/jpeg' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: filename });
-        return;
-      }
-    } catch (e) {
-      if (e && e.name === 'AbortError') return; // user canceled share sheet
-    }
-    // Fallback: <a download> is silently ignored by many mobile browsers
-    // (notably iOS Safari). Opening the image full-screen in a new tab so
-    // the user can long-press → "Save Image" works reliably everywhere.
+  // ---------- Save/download an image (dataURL) to the device ----------
+  Utils.saveImageToDevice = function (dataUrl, filename) {
+    const a = document.createElement('a');
+    a.href = dataUrl; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    Utils.toast('เริ่มดาวน์โหลดรูปภาพแล้ว', 'success');
+  };
+
+  // Opens an image full-screen in a new tab — the most reliable cross-browser
+  // way to let a user save an image via long-press (works even where the
+  // download attribute above is ignored, e.g. some iOS Safari versions).
+  Utils.openImageForSave = function (dataUrl, filename) {
     const w = window.open();
     if (w) {
       w.document.write(`<title>${filename}</title><body style="margin:0;background:#111;display:flex;align-items:center;justify-content:center;min-height:100vh;"><img src="${dataUrl}" style="max-width:100%;height:auto;" alt="${filename}"></body>`);
       Utils.toast('กดค้างที่รูปเพื่อบันทึกลงอัลบั้ม', 'success');
     } else {
-      const a = document.createElement('a');
-      a.href = dataUrl; a.download = filename;
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      Utils.saveImageToDevice(dataUrl, filename);
     }
   };
 

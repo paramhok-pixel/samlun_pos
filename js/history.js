@@ -5,6 +5,7 @@
   let currentSales = [];
   let openSaleId = null;
   let openSale = null;
+  let openSaleComposite = null;
 
   function computeRange(mode) {
     const today = Utils.todayISO();
@@ -77,6 +78,8 @@
     const sale = await DB.getSale(id);
     if (!sale) return;
     openSaleId = id;
+    openSale = sale;
+    openSaleComposite = null;
     const body = document.getElementById('sale-detail-body');
 
     const itemsHtml = sale.items.map(it => `
@@ -94,7 +97,10 @@
       ? `<div class="summary-row"><span>รับเงินมา</span><span>${Utils.money(sale.received)}</span></div>
          <div class="summary-row"><span>เงินทอน</span><span>${Utils.money(sale.change)}</span></div>`
       : `<div class="summary-row"><span>ชำระโดย</span><span>โอนเงิน / พร้อมเพย์</span></div>
-         ${sale.slipPhoto ? `<img src="${sale.slipPhoto}" style="width:100%;border-radius:12px;margin-top:8px;" alt="สลิป">` : '<p class="hint">ไม่มีภาพสลิปแนบ</p>'}`;
+         <div id="slip-detail-area" class="mt-8"><p class="hint">กำลังโหลดภาพ...</p></div>
+         <label class="btn btn-ghost btn-block btn-sm mt-8">แนบ/เปลี่ยนรูปสลิป
+           <input type="file" accept="image/*" id="sale-detail-slip-file" style="display:none;">
+         </label>`;
 
     body.innerHTML = `
       <div class="hint mt-8">${Utils.formatDateTimeThai(sale.datetime)}${sale.voided ? ' <span class="badge badge-void">ยกเลิกแล้ว</span>' : ''}</div>
@@ -106,12 +112,43 @@
       ${sale.note ? `<div class="hint mt-8">หมายเหตุ: ${Utils.escapeHtml(sale.note)}</div>` : ''}
     `;
 
-    openSale = sale;
+    if (sale.paymentMethod === 'transfer') {
+      const fileInput = document.getElementById('sale-detail-slip-file');
+      if (fileInput) fileInput.addEventListener('change', (e) => handleRetroSlip(e.target.files[0]));
+      const area = document.getElementById('slip-detail-area');
+      if (sale.slipPhoto) {
+        try {
+          openSaleComposite = await Reports.buildSlipComposite(sale);
+          area.innerHTML = `<img src="${openSaleComposite}" style="width:100%;border-radius:12px;" alt="สลิปพร้อมรายละเอียดบิล"><p class="hint text-center mt-8">กดค้างที่รูปเพื่อบันทึกลงอัลบั้ม</p>`;
+        } catch (e) {
+          area.innerHTML = `<img src="${sale.slipPhoto}" style="width:100%;border-radius:12px;" alt="สลิป">`;
+        }
+      } else {
+        area.innerHTML = `<p class="hint">ยังไม่มีภาพสลิปแนบ — แนบย้อนหลังได้ที่ปุ่มด้านล่าง</p>`;
+      }
+    }
+
     const voidBtn = document.getElementById('btn-void-sale');
     voidBtn.style.display = sale.voided ? 'none' : 'block';
     document.getElementById('btn-download-slip').style.display =
       (sale.paymentMethod === 'transfer' && sale.slipPhoto) ? 'block' : 'none';
     Utils.openSheet('sale-detail-overlay');
+  }
+
+  async function handleRetroSlip(file) {
+    if (!file || !openSale) return;
+    Utils.showLoading();
+    try {
+      const dataUrl = await Utils.compressImageFile(file, 1000, 0.7);
+      openSale.slipPhoto = dataUrl;
+      await DB.updateSale(openSale);
+      Utils.toast('แนบรูปสลิปแล้ว', 'success');
+      await openDetail(openSale.id);
+    } catch (e) {
+      Utils.toast('แนบรูปไม่สำเร็จ: ' + e.message, 'danger');
+    } finally {
+      Utils.hideLoading();
+    }
   }
 
   async function voidSale() {
@@ -124,7 +161,7 @@
       sale.voided = true;
       await DB.updateSale(sale);
       for (const it of sale.items) {
-        await DB.adjustStock(it.productId, it.qty);
+        if (!it.unlimitedStock) await DB.adjustStock(it.productId, it.qty);
       }
       Utils.toast('ยกเลิกรายการขายแล้ว คืนสต๊อกเรียบร้อย', 'success');
       Utils.closeSheet('sale-detail-overlay');
@@ -159,10 +196,14 @@
     document.getElementById('btn-void-sale').addEventListener('click', voidSale);
     document.getElementById('btn-download-slip').addEventListener('click', async () => {
       if (!openSale) return;
+      if (openSaleComposite) {
+        Utils.saveImageToDevice(openSaleComposite, `สลิป-บิล${openSale.id}.png`);
+        return;
+      }
       Utils.showLoading();
       try {
         const dataUrl = await Reports.buildSlipComposite(openSale);
-        await Utils.saveImageToDevice(dataUrl, `สลิป-บิล${openSale.id}.png`);
+        Utils.saveImageToDevice(dataUrl, `สลิป-บิล${openSale.id}.png`);
       } catch (e) {
         Utils.toast('สร้างภาพไม่สำเร็จ: ' + e.message, 'danger');
       } finally {

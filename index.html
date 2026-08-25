@@ -164,6 +164,10 @@
           <label>ที่อยู่ / รายละเอียดเพิ่มเติม</label>
           <textarea class="input" id="set-shop-address" placeholder="ที่อยู่ร้าน, เบอร์ติดต่อ ฯลฯ"></textarea>
         </div>
+        <div class="field">
+          <label>ชื่อผู้ขาย / ผู้ดูแลร้าน</label>
+          <input type="text" class="input" id="set-seller-name" placeholder="ใช้แสดงในรายงาน PDF, ภาพสรุปยอดขาย และข้อความส่ง LINE">
+        </div>
         <div class="field" style="margin-bottom:0;">
           <label>โลโก้ร้าน (แสดงในรายงาน PDF)</label>
           <div class="photo-input">
@@ -184,19 +188,32 @@
         </div>
       </div>
 
+      <div class="section-title">แชร์รายการสินค้า</div>
+      <div class="card">
+        <p class="hint">ส่งออกเฉพาะรายการสินค้า (พร้อมรูปและราคา) เป็นไฟล์แยก เพื่อแบ่งให้เจ้าหน้าที่คนอื่นนำเข้าใช้ในเครื่องของเขา โดยไม่รวมประวัติการขาย</p>
+        <button class="btn btn-primary btn-block" id="btn-export-products" style="margin-top:10px;">ส่งออกเฉพาะรายการสินค้า</button>
+        <label class="btn btn-ghost btn-block" style="margin-top:10px;">
+          นำเข้ารายการสินค้า (เพิ่มเข้าคลังปัจจุบัน)
+          <input type="file" accept="application/json" id="restore-products-file" style="display:none;">
+        </label>
+      </div>
+
       <div class="section-title">สำรอง / กู้คืนข้อมูล</div>
       <div class="card">
         <p class="hint">แอปนี้เก็บข้อมูลในเครื่อง/เบราว์เซอร์นี้เท่านั้น แนะนำให้สำรองข้อมูลเป็นไฟล์เก็บไว้เป็นระยะ เพื่อป้องกันข้อมูลหายหากล้างเบราว์เซอร์หรือเปลี่ยนเครื่อง</p>
-        <button class="btn btn-primary btn-block" id="btn-backup" style="margin-top:10px;">ดาวน์โหลดไฟล์สำรองข้อมูล</button>
+        <button class="btn btn-primary btn-block" id="btn-backup" style="margin-top:10px;">ดาวน์โหลดไฟล์สำรองข้อมูล (ทั้งหมด)</button>
         <label class="btn btn-ghost btn-block" style="margin-top:10px;">
-          นำเข้าไฟล์สำรองข้อมูล
+          นำเข้าไฟล์สำรองข้อมูล (ทั้งหมด)
           <input type="file" accept="application/json" id="restore-file" style="display:none;">
         </label>
       </div>
 
       <div class="section-title">ล้างข้อมูล</div>
       <div class="card">
-        <p class="hint">การล้างข้อมูลจะลบสินค้า ประวัติการขายทั้งหมดอย่างถาวร ไม่สามารถกู้คืนได้ (ยกเว้นมีไฟล์สำรองไว้)</p>
+        <p class="hint">ล้างเฉพาะประวัติการขาย จะลบทุกบิลที่ผ่านมา แต่สินค้าในคลังยังอยู่ครบ</p>
+        <button class="btn btn-danger btn-block" id="btn-clear-sales" style="margin-top:10px;">ล้างเฉพาะประวัติการขาย</button>
+        <div class="divider"></div>
+        <p class="hint">การล้างข้อมูลทั้งหมดจะลบสินค้า ประวัติการขายทั้งหมดอย่างถาวร ไม่สามารถกู้คืนได้ (ยกเว้นมีไฟล์สำรองไว้)</p>
         <button class="btn btn-danger btn-block" id="btn-clear-all" style="margin-top:10px;">ล้างข้อมูลทั้งหมด</button>
       </div>
 
@@ -301,11 +318,11 @@
         </div>
 
         <div id="transfer-pay-block" style="display:none;margin-top:14px;">
-          <p class="hint">แนบภาพสลิปการโอนเงิน (ไม่บังคับ แต่แนะนำให้แนบเพื่อใช้ตรวจสอบย้อนหลัง)</p>
+          <p class="hint">แนบภาพสลิปการโอนเงินเพื่อใช้ตรวจสอบย้อนหลัง</p>
           <div class="photo-input mt-8">
             <img id="slip-preview" class="photo-preview" alt="สลิป">
             <div class="photo-actions">
-              <label class="btn btn-ghost btn-sm">ถ่าย/แนบสลิป<input type="file" accept="image/*" capture="environment" id="slip-file" style="display:none;"></label>
+              <label class="btn btn-ghost btn-sm">ถ่าย/แนบสลิป<input type="file" accept="image/*" id="slip-file" style="display:none;"></label>
               <button class="btn btn-outline btn-sm" id="slip-save-gallery">บันทึกลงอัลบั้ม</button>
               <button class="btn btn-danger btn-sm" id="slip-clear">ลบสลิป</button>
             </div>
@@ -346,7 +363,7 @@
         <div class="photo-input">
           <img id="pf-photo-preview" class="photo-preview" alt="สินค้า">
           <div class="photo-actions">
-            <label class="btn btn-ghost btn-sm">ถ่ายรูป/แนบไฟล์<input type="file" accept="image/*" capture="environment" id="pf-photo-file" style="display:none;"></label>
+            <label class="btn btn-ghost btn-sm">ถ่ายรูป/แนบไฟล์<input type="file" accept="image/*" id="pf-photo-file" style="display:none;"></label>
             <button class="btn btn-danger btn-sm" id="pf-photo-clear">ลบรูป</button>
           </div>
         </div>
@@ -364,6 +381,18 @@
         <div class="field">
           <label>หน่วยนับ</label>
           <input type="text" class="input" id="pf-unit" placeholder="ชิ้น / ขวด / ถุง">
+          <div class="category-chips" id="pf-unit-presets" style="margin-top:6px;">
+            <button type="button" class="chip" data-unit="ชิ้น">ชิ้น</button>
+            <button type="button" class="chip" data-unit="ขวด">ขวด</button>
+            <button type="button" class="chip" data-unit="กระป๋อง">กระป๋อง</button>
+            <button type="button" class="chip" data-unit="ถุง">ถุง</button>
+            <button type="button" class="chip" data-unit="ซอง">ซอง</button>
+            <button type="button" class="chip" data-unit="กล่อง">กล่อง</button>
+            <button type="button" class="chip" data-unit="แพ็ค">แพ็ค</button>
+            <button type="button" class="chip" data-unit="ชุด">ชุด</button>
+            <button type="button" class="chip" data-unit="ท่าน">ท่าน</button>
+            <button type="button" class="chip" data-unit="อัน">อัน</button>
+          </div>
         </div>
       </div>
       <div class="field">
@@ -386,8 +415,13 @@
         </div>
       </div>
       <div class="field" style="margin-bottom:0;">
-        <label>จำนวนคงเหลือในคลัง</label>
-        <input type="number" class="input" id="pf-stock" min="0" step="1" inputmode="numeric">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;">
+          <input type="checkbox" id="pf-unlimited-stock"> ไม่จำกัดสต๊อก (ใช้กับสินค้า/บริการที่ขายอย่างเดียว ไม่ต้องนับจำนวน เช่น ค่าเข้าชม)
+        </label>
+        <div id="pf-stock-wrap">
+          <label>จำนวนคงเหลือในคลัง</label>
+          <input type="number" class="input" id="pf-stock" min="0" step="1" inputmode="numeric">
+        </div>
       </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="pf-cancel">ยกเลิก</button>

@@ -127,7 +127,8 @@
     try {
       const items = cartRef.map(l => ({
         productId: l.productId, name: l.name, unit: l.unit, qty: l.qty,
-        priceType: l.priceType, unitPrice: l.unitPrice, subtotal: l.unitPrice * l.qty
+        priceType: l.priceType, unitPrice: l.unitPrice, subtotal: l.unitPrice * l.qty,
+        unlimitedStock: !!l.unlimitedStock
       }));
       const sale = {
         datetime: new Date().toISOString(),
@@ -144,7 +145,7 @@
       sale.id = id;
 
       for (const it of items) {
-        await DB.adjustStock(it.productId, -it.qty);
+        if (!it.unlimitedStock) await DB.adjustStock(it.productId, -it.qty);
       }
 
       lastSale = sale;

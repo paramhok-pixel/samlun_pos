@@ -3,7 +3,7 @@
    Bump CACHE_VERSION whenever any app file changes so
    returning users get the update.
    ========================================================= */
-const CACHE_VERSION = 'pos-park-v1';
+const CACHE_VERSION = 'pos-park-v2';
 const CACHE_NAME = CACHE_VERSION;
 
 const PRECACHE_URLS = [

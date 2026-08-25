@@ -99,7 +99,9 @@ button:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focu
   position:sticky;
   top:0;
   z-index:20;
+  transition:background-color .18s ease;
 }
+.topbar.mode-tourist{ background:var(--amber-600); }
 .topbar .brand{display:flex;align-items:center;gap:8px;min-width:0;}
 .topbar .brand-mark{width:26px;height:26px;flex:none;}
 .topbar .brand-text{font-family:var(--font-display);font-weight:600;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}

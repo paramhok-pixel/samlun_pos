@@ -132,6 +132,23 @@
     },
 
     // ---------------- BACKUP / RESTORE ----------------
+    async exportProducts() {
+      const products = await this.getAllProducts();
+      return { _meta: { app: 'posOfflineDB', type: 'products-only', exportedAt: new Date().toISOString(), version: DB_VERSION }, products };
+    },
+    async importProducts(data) {
+      if (!data || !Array.isArray(data.products)) throw new Error('ไฟล์ไม่ถูกต้อง');
+      const db = await openDB();
+      const store = db.transaction('products', 'readwrite').objectStore('products');
+      let count = 0;
+      for (const p of data.products) {
+        const clone = Object.assign({}, p);
+        delete clone.id; // always add as new products to avoid id collisions across devices
+        await reqToPromise(store.add(clone));
+        count++;
+      }
+      return count;
+    },
     async exportAll() {
       const [products, sales] = await Promise.all([this.getAllProducts(), this.getAllSales()]);
       const settingsStore = await tx('settings', 'readonly');
@@ -166,6 +183,10 @@
         const stStore = db.transaction('settings', 'readwrite').objectStore('settings');
         for (const s of data.settings) await reqToPromise(stStore.put(s));
       }
+    },
+    async clearSalesOnly() {
+      const db = await openDB();
+      await reqToPromise(db.transaction('sales', 'readwrite').objectStore('sales').clear());
     },
     async clearAll(keepSettings) {
       const db = await openDB();

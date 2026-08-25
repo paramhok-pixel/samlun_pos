@@ -48,7 +48,7 @@
   function filteredProducts() {
     return allProducts.filter(p => {
       if (activeCategory !== 'all' && (p.category || '') !== activeCategory) return false;
-      if (lowOnly && Number(p.stock) > lowStockThreshold) return false;
+      if (lowOnly && (p.unlimitedStock || Number(p.stock) > lowStockThreshold)) return false;
       if (searchTerm) {
         const t = searchTerm.toLowerCase();
         const hay = ((p.name || '') + ' ' + (p.barcode || '') + ' ' + (p.category || '')).toLowerCase();
@@ -70,7 +70,7 @@
     }
 
     host.innerHTML = list.map(p => {
-      const low = Number(p.stock) <= lowStockThreshold;
+      const low = !p.unlimitedStock && Number(p.stock) <= lowStockThreshold;
       const img = p.photo || Utils.placeholderImg;
       return `
       <div class="list-row" data-id="${p.id}">
@@ -80,8 +80,8 @@
           <div class="sub">${Utils.escapeHtml(p.category || 'ไม่มีหมวดหมู่')} · จ.น.ท ${Utils.money(p.priceStaff)} / นทท ${Utils.money(p.priceTourist)}</div>
         </div>
         <div class="trail">
-          ${p.stock} ${Utils.escapeHtml(p.unit || 'ชิ้น')}
-          <small>${low ? '<span class="badge badge-low">ใกล้หมด</span>' : 'คงเหลือ'}</small>
+          ${p.unlimitedStock ? 'ไม่จำกัด' : p.stock + ' ' + Utils.escapeHtml(p.unit || 'ชิ้น')}
+          <small>${low ? '<span class="badge badge-low">ใกล้หมด</span>' : (p.unlimitedStock ? '' : 'คงเหลือ')}</small>
         </div>
       </div>`;
     }).join('');
@@ -103,6 +103,8 @@
     document.getElementById('pf-price-staff').value = '';
     document.getElementById('pf-price-tourist').value = '';
     document.getElementById('pf-stock').value = '0';
+    document.getElementById('pf-unlimited-stock').checked = false;
+    document.getElementById('pf-stock-wrap').style.display = 'block';
     document.getElementById('pf-photo-preview').src = Utils.placeholderImg;
     document.getElementById('pf-delete').style.display = 'none';
   }
@@ -122,6 +124,8 @@
       document.getElementById('pf-price-staff').value = p.priceStaff ?? '';
       document.getElementById('pf-price-tourist').value = p.priceTourist ?? '';
       document.getElementById('pf-stock').value = p.stock ?? 0;
+      document.getElementById('pf-unlimited-stock').checked = !!p.unlimitedStock;
+      document.getElementById('pf-stock-wrap').style.display = p.unlimitedStock ? 'none' : 'block';
       document.getElementById('pf-photo-preview').src = p.photo || Utils.placeholderImg;
       pendingPhoto = p.photo || null;
       document.getElementById('pf-delete').style.display = 'block';
@@ -136,6 +140,7 @@
     const priceStaff = parseFloat(document.getElementById('pf-price-staff').value);
     const priceTourist = parseFloat(document.getElementById('pf-price-tourist').value);
     const stock = parseInt(document.getElementById('pf-stock').value, 10) || 0;
+    const unlimitedStock = document.getElementById('pf-unlimited-stock').checked;
 
     if (!name) { Utils.toast('กรุณากรอกชื่อสินค้า', 'danger'); return; }
     if (isNaN(priceStaff) || isNaN(priceTourist) || priceStaff < 0 || priceTourist < 0) {
@@ -147,7 +152,7 @@
       category: document.getElementById('pf-category').value.trim(),
       unit: document.getElementById('pf-unit').value.trim() || 'ชิ้น',
       barcode: document.getElementById('pf-barcode').value.trim(),
-      priceStaff, priceTourist, stock,
+      priceStaff, priceTourist, stock, unlimitedStock,
       photo: pendingPhoto || null
     };
 
@@ -209,6 +214,14 @@
       renderList();
     });
 
+    document.getElementById('pf-unit-presets').addEventListener('click', (e) => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      document.getElementById('pf-unit').value = chip.getAttribute('data-unit');
+    });
+    document.getElementById('pf-unlimited-stock').addEventListener('change', (e) => {
+      document.getElementById('pf-stock-wrap').style.display = e.target.checked ? 'none' : 'block';
+    });
     document.getElementById('pf-photo-file').addEventListener('change', (e) => handlePhotoFile(e.target.files[0]));
     document.getElementById('pf-photo-clear').addEventListener('click', () => {
       pendingPhoto = null;

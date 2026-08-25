@@ -105,7 +105,8 @@
     const name = await DB.getSetting('shopName', 'ร้านสวัสดิการอุทยานแห่งชาติ');
     const address = await DB.getSetting('shopAddress', '');
     const logo = await DB.getSetting('shopLogo', null);
-    return { name, address, logo };
+    const sellerName = await DB.getSetting('sellerName', '');
+    return { name, address, logo, sellerName };
   }
 
   // ---------------- Slip + bill-details composite image ----------------
@@ -121,11 +122,14 @@
     const blocks = [];
     blocks.push({ h: 34, draw: (ctx, y) => { ctx.font = '700 22px Sarabun, sans-serif'; ctx.fillStyle = '#143D27'; ctx.fillText(shop.name, PAD, y + 22); } });
     blocks.push({ h: 26, draw: (ctx, y) => { ctx.font = '400 15px Sarabun, sans-serif'; ctx.fillStyle = '#3A473E'; ctx.fillText(`บิลเลขที่ ${sale.id} · ${Utils.formatDateTimeThai(sale.datetime)}`, PAD, y + 14); } });
+    if (shop.sellerName) {
+      blocks.push({ h: 22, draw: (ctx, y) => { ctx.font = '400 14px Sarabun, sans-serif'; ctx.fillStyle = '#6B7A70'; ctx.fillText(`ผู้ขาย: ${shop.sellerName}`, PAD, y + 12); } });
+    }
     blocks.push({ h: 20, draw: (ctx, y) => { ctx.strokeStyle = '#E4DECE'; ctx.beginPath(); ctx.moveTo(PAD, y + 8); ctx.lineTo(W - PAD, y + 8); ctx.stroke(); } });
     for (const it of sale.items) {
       blocks.push({ h: ITEM_H, draw: (ctx, y) => {
         ctx.font = '400 16px Sarabun, sans-serif'; ctx.fillStyle = '#17211B';
-        ctx.textAlign = 'left'; ctx.fillText(`${it.name} × ${it.qty}`, PAD, y + 18);
+        ctx.textAlign = 'left'; ctx.fillText(`${it.name} × ${it.qty} (${it.priceType === 'staff' ? 'จนท.' : 'นทท.'})`, PAD, y + 18);
         ctx.textAlign = 'right'; ctx.fillText(Utils.moneyPlain(it.subtotal), W - PAD, y + 18);
         ctx.textAlign = 'left';
       }});
@@ -174,20 +178,28 @@
       if (shop.logo) {
         try { doc.addImage(shop.logo, 'JPEG', 40, y - 10, 40, 40); } catch (e) {}
       }
-      doc.setFont('Sarabun', 'bold'); doc.setFontSize(16);
-      doc.text(shop.name, shop.logo ? 90 : 40, y + 10);
+      const textX = shop.logo ? 90 : 40;
+      doc.setFont('Sarabun', 'bold'); doc.setFontSize(16); doc.setTextColor(0);
+      doc.text(shop.name, textX, y + 10);
       doc.setFont('Sarabun', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
-      if (shop.address) doc.text(shop.address, shop.logo ? 90 : 40, y + 26);
+      let addrY = y + 26;
+      if (shop.address) { doc.text(shop.address, textX, addrY); addrY += 14; }
+      if (shop.sellerName) { doc.text(`ผู้จัดทำรายงาน: ${shop.sellerName}`, textX, addrY); }
       doc.setTextColor(0);
 
       y += 55;
+      doc.setDrawColor(200); doc.setLineWidth(0.75);
+      doc.line(40, y, pageWidth - 40, y);
+      y += 22;
+
       doc.setFont('Sarabun', 'bold'); doc.setFontSize(13);
       doc.text('รายงานสรุปยอดขาย', 40, y);
-      doc.setFont('Sarabun', 'normal'); doc.setFontSize(10);
+      doc.setFont('Sarabun', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
       doc.text(`ช่วงวันที่ ${Utils.formatDateThai(from + 'T00:00:00')} — ${Utils.formatDateThai(to + 'T00:00:00')}`, 40, y + 16);
       doc.text(`สร้างรายงานเมื่อ ${Utils.formatDateTimeThai(new Date().toISOString())}`, 40, y + 30);
+      doc.setTextColor(0);
 
-      y += 46;
+      y += 54;
       const total = currentSales.reduce((s, x) => s + x.totalAmount, 0);
       let staffTotal = 0, touristTotal = 0, cashTotal = 0, transferTotal = 0;
       for (const s of currentSales) {
@@ -195,18 +207,19 @@
         for (const it of s.items) { if (it.priceType === 'staff') staffTotal += it.subtotal; else touristTotal += it.subtotal; }
       }
 
-      doc.setFillColor(20, 61, 39);
-      doc.roundedRect(40, y, pageWidth - 80, 54, 6, 6, 'F');
-      doc.setTextColor(255); doc.setFont('Sarabun', 'bold'); doc.setFontSize(11);
-      doc.text('ยอดขายรวมทั้งหมด', 54, y + 20);
-      doc.setFontSize(18);
-      doc.text(Utils.money(total), 54, y + 42);
-      doc.setFont('Sarabun', 'normal'); doc.setFontSize(9);
-      doc.text(`${currentSales.length} บิล`, pageWidth - 150, y + 20);
-      doc.text(`เงินสด ${Utils.money(cashTotal)}  ·  โอน ${Utils.money(transferTotal)}`, pageWidth - 260, y + 42, { maxWidth: 210 });
+      doc.setDrawColor(210); doc.setLineWidth(0.75);
+      doc.rect(40, y, pageWidth - 80, 58);
+      doc.setFont('Sarabun', 'bold'); doc.setFontSize(10);
+      doc.text('ยอดขายรวมทั้งหมด', 52, y + 18);
+      doc.setFontSize(17);
+      doc.text(Utils.money(total) + ' บาท', 52, y + 40);
+      doc.setFont('Sarabun', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+      doc.text(`${currentSales.length} บิล`, pageWidth - 190, y + 18);
+      doc.text(`เงินสด ${Utils.money(cashTotal)}`, pageWidth - 190, y + 32);
+      doc.text(`โอนเงิน ${Utils.money(transferTotal)}`, pageWidth - 190, y + 46);
       doc.setTextColor(0);
 
-      y += 72;
+      y += 76;
       doc.setFont('Sarabun', 'normal'); doc.setFontSize(10);
       doc.text(`ราคาเจ้าหน้าที่: ${Utils.money(staffTotal)}    ราคานักท่องเที่ยว: ${Utils.money(touristTotal)}`, 40, y);
       y += 18;
@@ -227,9 +240,9 @@
         startY: y,
         head: [['#', 'วันเวลา', 'จำนวนรายการ', 'ชำระโดย', 'ยอดรวม (บาท)']],
         body,
-        styles: { font: 'Sarabun', fontSize: 9, cellPadding: 5 },
-        headStyles: { fillColor: [30, 86, 49], textColor: 255, font: 'Sarabun', fontStyle: 'bold' },
-        alternateRowStyles: { fillColor: [250, 246, 236] },
+        styles: { font: 'Sarabun', fontSize: 9, cellPadding: 5, lineColor: [210, 210, 210], lineWidth: 0.5, textColor: [20, 20, 20] },
+        headStyles: { fillColor: [238, 238, 235], textColor: [20, 20, 20], font: 'Sarabun', fontStyle: 'bold', lineColor: [190, 190, 190] },
+        alternateRowStyles: { fillColor: [250, 250, 248] },
         columnStyles: { 0: { cellWidth: 26 }, 4: { halign: 'right' } },
         margin: { left: 40, right: 40 }
       });
@@ -245,8 +258,9 @@
           startY: afterTableY + 10,
           head: [['สินค้า', 'จำนวนที่ขาย', 'ยอดขาย (บาท)']],
           body: top.slice(0, 15).map(p => [p.name, p.qty + ' ' + (p.unit || ''), Utils.moneyPlain(p.revenue)]),
-          styles: { font: 'Sarabun', fontSize: 9, cellPadding: 5 },
-          headStyles: { fillColor: [224, 158, 62], textColor: [23, 33, 27], font: 'Sarabun', fontStyle: 'bold' },
+          styles: { font: 'Sarabun', fontSize: 9, cellPadding: 5, lineColor: [210, 210, 210], lineWidth: 0.5, textColor: [20, 20, 20] },
+          headStyles: { fillColor: [238, 238, 235], textColor: [20, 20, 20], font: 'Sarabun', fontStyle: 'bold', lineColor: [190, 190, 190] },
+          alternateRowStyles: { fillColor: [250, 250, 248] },
           columnStyles: { 2: { halign: 'right' } },
           margin: { left: 40, right: 40 }
         });
@@ -258,12 +272,14 @@
         let py = 40;
         doc.setFont('Sarabun', 'bold'); doc.setFontSize(13);
         doc.text(`หลักฐานการโอนเงิน — บิลเลขที่ ${s.id}`, 40, py);
-        doc.setFont('Sarabun', 'normal'); doc.setFontSize(10);
+        doc.setFont('Sarabun', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
         py += 18;
         doc.text(Utils.formatDateTimeThai(s.datetime), 40, py);
         py += 16;
+        if (shop.sellerName) { doc.text(`ผู้ขาย: ${shop.sellerName}`, 40, py); py += 16; }
+        doc.setTextColor(0);
         for (const it of s.items) {
-          doc.text(`${it.name} × ${it.qty} = ${Utils.moneyPlain(it.subtotal)} บาท`, 40, py);
+          doc.text(`${it.name} × ${it.qty} (${it.priceType === 'staff' ? 'จนท.' : 'นทท.'}) = ${Utils.moneyPlain(it.subtotal)} บาท`, 40, py);
           py += 14;
         }
         doc.setFont('Sarabun', 'bold');
@@ -356,6 +372,7 @@
 
     let text = `📋 สรุปยอดขาย — ${shop.name}\n`;
     text += `🗓️ ${Utils.formatDateThai(from + 'T00:00:00')} - ${Utils.formatDateThai(to + 'T00:00:00')}\n`;
+    if (shop.sellerName) text += `👤 ผู้ขาย: ${shop.sellerName}\n`;
     text += `——————————\n`;
     text += `💰 ยอดขายรวม: ${Utils.money(total)}\n`;
     text += `🧾 จำนวนบิล: ${currentSales.length} บิล\n`;

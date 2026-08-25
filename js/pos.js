@@ -55,8 +55,8 @@
 
     grid.innerHTML = list.map(p => {
       const price = priceFor(p, priceMode);
-      const oos = Number(p.stock) <= 0;
-      const low = !oos && Number(p.stock) <= Products.getLowStockThreshold();
+      const oos = !p.unlimitedStock && Number(p.stock) <= 0;
+      const low = !p.unlimitedStock && !oos && Number(p.stock) <= Products.getLowStockThreshold();
       const thumb = p.photo
         ? `<img class="product-thumb" src="${p.photo}" alt="">`
         : `<div class="product-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg></div>`;
@@ -66,7 +66,7 @@
         <div class="product-info">
           <div class="product-name">${Utils.escapeHtml(p.name)}</div>
           <div class="product-price">${Utils.money(price)}</div>
-          <div class="product-stock${low ? ' low' : ''}">${oos ? 'สินค้าหมด' : 'คงเหลือ ' + p.stock + ' ' + Utils.escapeHtml(p.unit || '')}</div>
+          <div class="product-stock${low ? ' low' : ''}">${p.unlimitedStock ? 'ไม่จำกัด' : (oos ? 'สินค้าหมด' : 'คงเหลือ ' + p.stock + ' ' + Utils.escapeHtml(p.unit || ''))}</div>
         </div>
       </button>`;
     }).join('');
@@ -89,7 +89,7 @@
     qtyDelta = qtyDelta || 1;
     const existing = cart.find(l => l.productId === product.id && l.priceType === priceMode);
     const currentQty = existing ? existing.qty : 0;
-    if (currentQty + qtyDelta > Number(product.stock)) {
+    if (!product.unlimitedStock && currentQty + qtyDelta > Number(product.stock)) {
       Utils.toast('สินค้าคงเหลือไม่พอ (คงเหลือ ' + product.stock + ')', 'danger');
       return;
     }
@@ -104,7 +104,8 @@
         priceType: priceMode,
         unitPrice: priceFor(product, priceMode),
         qty: qtyDelta,
-        maxStock: Number(product.stock)
+        maxStock: product.unlimitedStock ? Infinity : Number(product.stock),
+        unlimitedStock: !!product.unlimitedStock
       });
     }
     persistCart();
@@ -245,6 +246,7 @@
       if (!btn) return;
       priceMode = btn.getAttribute('data-mode');
       document.querySelectorAll('#price-mode-toggle button').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelector('.topbar').classList.toggle('mode-tourist', priceMode === 'tourist');
       renderGrid();
     });
 

@@ -6,9 +6,15 @@
   async function load() {
     document.getElementById('set-shop-name').value = await DB.getSetting('shopName', 'ร้านสวัสดิการอุทยานแห่งชาติ');
     document.getElementById('set-shop-address').value = await DB.getSetting('shopAddress', '');
+    document.getElementById('set-seller-name').value = await DB.getSetting('sellerName', '');
     document.getElementById('set-low-stock').value = await DB.getSetting('lowStockThreshold', 5);
     const logo = await DB.getSetting('shopLogo', null);
     document.getElementById('set-logo-preview').src = logo || Utils.placeholderImg;
+  }
+
+  async function saveSellerName() {
+    await DB.setSetting('sellerName', document.getElementById('set-seller-name').value.trim());
+    Utils.toast('บันทึกแล้ว', 'success');
   }
 
   async function saveShopName() {
@@ -43,6 +49,63 @@
     await DB.setSetting('shopLogo', null);
     document.getElementById('set-logo-preview').src = Utils.placeholderImg;
     Utils.toast('ลบโลโก้แล้ว', 'success');
+  }
+
+  async function exportProductsOnly() {
+    Utils.showLoading();
+    try {
+      const data = await DB.exportProducts();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const d = new Date();
+      const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+      const a = document.createElement('a');
+      a.href = url; a.download = `pos-products-${stamp}.json`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      Utils.toast(`ส่งออกรายการสินค้าแล้ว (${data.products.length} รายการ)`, 'success');
+    } catch (err) {
+      Utils.toast('ส่งออกไม่สำเร็จ: ' + err.message, 'danger');
+    } finally {
+      Utils.hideLoading();
+    }
+  }
+
+  async function importProductsOnly(file) {
+    if (!file) return;
+    try {
+      const data = JSON.parse(await file.text());
+      const ok = await Utils.confirmDialog('นำเข้ารายการสินค้า?', 'สินค้าในไฟล์นี้จะถูกเพิ่มเข้าคลังปัจจุบันทั้งหมด (ไม่ลบของเดิม)', 'นำเข้า');
+      if (!ok) return;
+      Utils.showLoading();
+      const count = await DB.importProducts(data);
+      Utils.toast(`นำเข้าสินค้าแล้ว ${count} รายการ`, 'success');
+      await Products.refresh();
+      document.dispatchEvent(new CustomEvent('products:changed'));
+    } catch (err) {
+      console.error(err);
+      Utils.toast('นำเข้าไม่สำเร็จ: ไฟล์ไม่ถูกต้อง', 'danger');
+    } finally {
+      Utils.hideLoading();
+      document.getElementById('restore-products-file').value = '';
+    }
+  }
+
+  async function clearSalesOnly() {
+    const ok = await Utils.confirmDialog(
+      'ล้างเฉพาะประวัติการขาย?',
+      'บิลทั้งหมดที่ผ่านมาจะถูกลบถาวร แต่รายการสินค้าในคลังจะยังอยู่ครบ ต้องการดำเนินการต่อหรือไม่?',
+      'ล้างประวัติการขาย'
+    );
+    if (!ok) return;
+    Utils.showLoading();
+    try {
+      await DB.clearSalesOnly();
+      Utils.toast('ล้างประวัติการขายเรียบร้อยแล้ว', 'success');
+      document.dispatchEvent(new CustomEvent('sales:changed'));
+    } finally {
+      Utils.hideLoading();
+    }
   }
 
   async function backup() {
@@ -115,11 +178,15 @@
   function bindEvents() {
     document.getElementById('set-shop-name').addEventListener('change', saveShopName);
     document.getElementById('set-shop-address').addEventListener('change', saveShopAddress);
+    document.getElementById('set-seller-name').addEventListener('change', saveSellerName);
     document.getElementById('set-low-stock').addEventListener('change', saveLowStock);
     document.getElementById('set-logo-file').addEventListener('change', (e) => handleLogoFile(e.target.files[0]));
     document.getElementById('set-logo-clear').addEventListener('click', clearLogo);
+    document.getElementById('btn-export-products').addEventListener('click', exportProductsOnly);
+    document.getElementById('restore-products-file').addEventListener('change', (e) => importProductsOnly(e.target.files[0]));
     document.getElementById('btn-backup').addEventListener('click', backup);
     document.getElementById('restore-file').addEventListener('change', (e) => restore(e.target.files[0]));
+    document.getElementById('btn-clear-sales').addEventListener('click', clearSalesOnly);
     document.getElementById('btn-clear-all').addEventListener('click', clearAll);
   }
 
