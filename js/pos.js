@@ -3,10 +3,15 @@
    ========================================================= */
 (function () {
   const CART_KEY = 'pos_cart_v1';
-  let cart = [];               // [{productId, name, unit, photo, priceType, unitPrice, qty, maxStock}]
+  let cart = [];               // [{productId, name, unit, photo, priceType, unitPrice, qty, maxStock, skipStock}]
   let priceMode = 'staff';     // default price type applied to newly-added items
   let activeCategory = 'all';
   let searchTerm = '';
+  let sellOnlyMode = false;    // global setting: ignore stock entirely when true
+
+  async function loadSellOnlyMode() {
+    sellOnlyMode = await DB.getSetting('sellOnlyMode', false);
+  }
 
   function loadCart() {
     try {
@@ -20,6 +25,9 @@
 
   function priceFor(product, type) {
     return type === 'tourist' ? Number(product.priceTourist) : Number(product.priceStaff);
+  }
+  function getPriceModeLabel() {
+    return priceMode === 'tourist' ? 'นักท่องเที่ยว' : 'เจ้าหน้าที่';
   }
 
   // ---------------- Product grid ----------------
@@ -55,8 +63,8 @@
 
     grid.innerHTML = list.map(p => {
       const price = priceFor(p, priceMode);
-      const oos = !p.unlimitedStock && Number(p.stock) <= 0;
-      const low = !p.unlimitedStock && !oos && Number(p.stock) <= Products.getLowStockThreshold();
+      const oos = !sellOnlyMode && Number(p.stock) <= 0;
+      const low = !sellOnlyMode && !oos && Number(p.stock) <= Products.getLowStockThreshold();
       const thumb = p.photo
         ? `<img class="product-thumb" src="${p.photo}" alt="">`
         : `<div class="product-thumb"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/></svg></div>`;
@@ -66,7 +74,7 @@
         <div class="product-info">
           <div class="product-name">${Utils.escapeHtml(p.name)}</div>
           <div class="product-price">${Utils.money(price)}</div>
-          <div class="product-stock${low ? ' low' : ''}">${p.unlimitedStock ? 'ไม่จำกัด' : (oos ? 'สินค้าหมด' : 'คงเหลือ ' + p.stock + ' ' + Utils.escapeHtml(p.unit || ''))}</div>
+          <div class="product-stock${low ? ' low' : ''}">${oos ? 'สินค้าหมด' : 'คงเหลือ ' + p.stock + ' ' + Utils.escapeHtml(p.unit || '')}</div>
         </div>
       </button>`;
     }).join('');
@@ -89,7 +97,7 @@
     qtyDelta = qtyDelta || 1;
     const existing = cart.find(l => l.productId === product.id && l.priceType === priceMode);
     const currentQty = existing ? existing.qty : 0;
-    if (!product.unlimitedStock && currentQty + qtyDelta > Number(product.stock)) {
+    if (!sellOnlyMode && currentQty + qtyDelta > Number(product.stock)) {
       Utils.toast('สินค้าคงเหลือไม่พอ (คงเหลือ ' + product.stock + ')', 'danger');
       return;
     }
@@ -104,8 +112,8 @@
         priceType: priceMode,
         unitPrice: priceFor(product, priceMode),
         qty: qtyDelta,
-        maxStock: product.unlimitedStock ? Infinity : Number(product.stock),
-        unlimitedStock: !!product.unlimitedStock
+        maxStock: sellOnlyMode ? Infinity : Number(product.stock),
+        skipStock: sellOnlyMode
       });
     }
     persistCart();
@@ -246,7 +254,9 @@
       if (!btn) return;
       priceMode = btn.getAttribute('data-mode');
       document.querySelectorAll('#price-mode-toggle button').forEach(b => b.classList.toggle('active', b === btn));
-      document.querySelector('.topbar').classList.toggle('mode-tourist', priceMode === 'tourist');
+      const titleEl = document.getElementById('screen-title-text');
+      titleEl.textContent = getPriceModeLabel();
+      titleEl.classList.add('mode-label');
       renderGrid();
     });
 
@@ -277,10 +287,15 @@
     });
 
     document.addEventListener('products:changed', refreshProductArea);
+    document.addEventListener('settings:changed', async () => {
+      await loadSellOnlyMode();
+      renderGrid();
+    });
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     loadCart();
+    await loadSellOnlyMode();
     bindEvents();
     renderCartBar();
   });
@@ -291,6 +306,7 @@
     getCartTotal: cartTotal,
     getCartCount: cartCount,
     clearCartAfterSale: clearCart,
-    renderCartBar
+    renderCartBar,
+    getPriceModeLabel
   };
 })();

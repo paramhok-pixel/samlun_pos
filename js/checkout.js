@@ -7,6 +7,7 @@
   let paymentMethod = 'cash';
   let denomCounts = {};
   let exactMode = false;
+  let manualAmount = null;
   let slipPhoto = null;
   let lastSale = null;
 
@@ -16,11 +17,14 @@
     paymentMethod = 'cash';
     denomCounts = {};
     exactMode = false;
+    manualAmount = null;
     slipPhoto = null;
 
     document.getElementById('checkout-total-amt').textContent = Utils.money(total);
     document.getElementById('checkout-note').value = '';
     document.getElementById('slip-preview').src = Utils.placeholderImg;
+    document.getElementById('manual-receive-input').value = '';
+    document.getElementById('manual-receive-input').style.display = 'none';
     document.querySelectorAll('#pay-method-toggle button').forEach(b => b.classList.toggle('active', b.getAttribute('data-pay') === 'cash'));
     document.getElementById('cash-pay-block').style.display = 'block';
     document.getElementById('transfer-pay-block').style.display = 'none';
@@ -32,30 +36,16 @@
 
   function renderDenomGrid() {
     const host = document.getElementById('denom-grid');
-    host.innerHTML = Utils.DENOMS.map(d => {
-      const isCoin = d <= 10;
+    const cells = Utils.DENOMS.map(d => {
       const count = denomCounts[d] || 0;
       return `
       <div class="denom-btn d-${d}" data-denom="${d}">
-        ${count > 0 ? `<span class="cnt-badge">×${count}</span>` : ''}
+        ${count > 0 ? `<button type="button" class="cnt-badge" data-remove-denom="${d}">${count} −</button>` : ''}
         <div class="v">${d}</div>
-        <div class="c">${isCoin ? 'เหรียญ' : 'แบงก์'}</div>
       </div>`;
     }).join('');
-    host.querySelectorAll('.denom-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const d = Number(btn.getAttribute('data-denom'));
-        exactMode = false;
-        denomCounts[d] = (denomCounts[d] || 0) + 1;
-        renderDenomGrid();
-        updateChangeDisplay();
-      });
-      // long-press / double-click to decrement one unit
-      let pressTimer;
-      btn.addEventListener('touchstart', () => { pressTimer = setTimeout(() => decDenom(Number(btn.getAttribute('data-denom'))), 500); });
-      btn.addEventListener('touchend', () => clearTimeout(pressTimer));
-      btn.addEventListener('contextmenu', (e) => { e.preventDefault(); decDenom(Number(btn.getAttribute('data-denom'))); });
-    });
+    const exactCell = `<div class="denom-btn denom-exact" data-exact="1"><div class="v">พอดี</div></div>`;
+    host.innerHTML = cells + exactCell;
   }
 
   function decDenom(d) {
@@ -67,6 +57,7 @@
   }
 
   function receivedAmount() {
+    if (manualAmount !== null) return manualAmount;
     if (exactMode) return total;
     return Object.entries(denomCounts).reduce((sum, [d, c]) => sum + Number(d) * c, 0);
   }
@@ -77,23 +68,15 @@
     const disp = document.getElementById('change-display');
     const amtEl = document.getElementById('change-amt');
     const lblEl = disp.querySelector('.lbl');
-    const breakdownEl = document.getElementById('change-breakdown');
 
     if (received < total) {
       disp.classList.add('insufficient');
       lblEl.textContent = 'รับเงินไม่พอ ขาดอีก';
       amtEl.textContent = Utils.money(total - received);
-      breakdownEl.textContent = '';
     } else {
       disp.classList.remove('insufficient');
       lblEl.textContent = 'เงินทอน';
       amtEl.textContent = Utils.money(change);
-      if (change > 0) {
-        const parts = Utils.breakdownChange(change);
-        breakdownEl.textContent = 'แนะนำทอน: ' + parts.map(p => `${p.denom}×${p.count}`).join('  ');
-      } else {
-        breakdownEl.textContent = 'รับเงินพอดี ไม่ต้องทอน';
-      }
     }
     updateConfirmState();
   }
@@ -128,7 +111,7 @@
       const items = cartRef.map(l => ({
         productId: l.productId, name: l.name, unit: l.unit, qty: l.qty,
         priceType: l.priceType, unitPrice: l.unitPrice, subtotal: l.unitPrice * l.qty,
-        unlimitedStock: !!l.unlimitedStock
+        skipStock: !!l.skipStock
       }));
       const sale = {
         datetime: new Date().toISOString(),
@@ -145,7 +128,7 @@
       sale.id = id;
 
       for (const it of items) {
-        if (!it.unlimitedStock) await DB.adjustStock(it.productId, -it.qty);
+        if (!it.skipStock) await DB.adjustStock(it.productId, -it.qty);
       }
 
       lastSale = sale;
@@ -184,15 +167,54 @@
       updateConfirmState();
     });
 
-    document.getElementById('btn-exact-pay').addEventListener('click', () => {
-      exactMode = true;
-      denomCounts = {};
-      renderDenomGrid();
-      updateChangeDisplay();
+    document.getElementById('denom-grid').addEventListener('click', (e) => {
+      const removeBtn = e.target.closest('[data-remove-denom]');
+      if (removeBtn) { decDenom(Number(removeBtn.getAttribute('data-remove-denom'))); return; }
+      const exactCell = e.target.closest('[data-exact]');
+      if (exactCell) {
+        manualAmount = null;
+        exactMode = true;
+        denomCounts = {};
+        document.getElementById('manual-receive-input').style.display = 'none';
+        renderDenomGrid();
+        updateChangeDisplay();
+        return;
+      }
+      const cell = e.target.closest('.denom-btn[data-denom]');
+      if (cell) {
+        manualAmount = null;
+        exactMode = false;
+        document.getElementById('manual-receive-input').style.display = 'none';
+        const d = Number(cell.getAttribute('data-denom'));
+        denomCounts[d] = (denomCounts[d] || 0) + 1;
+        renderDenomGrid();
+        updateChangeDisplay();
+      }
     });
-    document.getElementById('btn-clear-denom').addEventListener('click', () => {
+
+    document.getElementById('btn-manual-entry').addEventListener('click', () => {
+      const input = document.getElementById('manual-receive-input');
+      const showing = input.style.display !== 'none';
+      if (showing) { input.style.display = 'none'; return; }
       exactMode = false;
       denomCounts = {};
+      renderDenomGrid();
+      input.style.display = 'block';
+      input.value = manualAmount !== null ? manualAmount : '';
+      input.focus();
+    });
+    document.getElementById('manual-receive-input').addEventListener('input', (e) => {
+      const v = parseFloat(e.target.value);
+      manualAmount = isNaN(v) ? 0 : v;
+      updateChangeDisplay();
+    });
+
+    document.getElementById('btn-clear-denom').addEventListener('click', () => {
+      exactMode = false;
+      manualAmount = null;
+      denomCounts = {};
+      document.getElementById('manual-receive-input').style.display = 'none';
+      document.getElementById('manual-receive-input').value = '';
       renderDenomGrid();
       updateChangeDisplay();
     });

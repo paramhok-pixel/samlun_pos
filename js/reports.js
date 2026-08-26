@@ -101,6 +101,33 @@
     });
   }
 
+  // Bill numbers reset to 1 each new calendar day (based on when the sale
+  // happened, not the DB id) so cross-checking a printed/saved bill against
+  // that day's records is unambiguous.
+  function dailyBillNumberMap(sales) {
+    const sorted = sales.slice().sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+    const counters = {};
+    const map = {};
+    for (const s of sorted) {
+      const day = s.datetime.slice(0, 10);
+      counters[day] = (counters[day] || 0) + 1;
+      map[s.id] = counters[day];
+    }
+    return map;
+  }
+
+  async function getDailyBillNumber(sale) {
+    const day = sale.datetime.slice(0, 10);
+    const daySales = await DB.getSalesInRange(Utils.startOfDayISO(day), Utils.endOfDayISO(day));
+    return dailyBillNumberMap(daySales)[sale.id] || 1;
+  }
+
+  function salePriceTypeLabel(sale) {
+    const types = new Set(sale.items.map(it => it.priceType));
+    if (types.size > 1) return 'เจ้าหน้าที่ + นักท่องเที่ยว';
+    return types.has('tourist') ? 'นักท่องเที่ยว' : 'เจ้าหน้าที่';
+  }
+
   async function getShopInfo() {
     const name = await DB.getSetting('shopName', 'ร้านสวัสดิการอุทยานแห่งชาติ');
     const address = await DB.getSetting('shopAddress', '');
@@ -116,42 +143,43 @@
     if (document.fonts && document.fonts.ready) await document.fonts.ready;
     const shop = await getShopInfo();
     const img = await loadImage(sale.slipPhoto);
+    const billNo = await getDailyBillNumber(sale);
     const W = 720, PAD = 28, ITEM_H = 26;
     const imgH = Math.round(img.height * ((W - PAD * 2) / img.width));
 
     const blocks = [];
-    blocks.push({ h: 34, draw: (ctx, y) => { ctx.font = '700 22px Sarabun, sans-serif'; ctx.fillStyle = '#143D27'; ctx.fillText(shop.name, PAD, y + 22); } });
-    blocks.push({ h: 26, draw: (ctx, y) => { ctx.font = '400 15px Sarabun, sans-serif'; ctx.fillStyle = '#3A473E'; ctx.fillText(`บิลเลขที่ ${sale.id} · ${Utils.formatDateTimeThai(sale.datetime)}`, PAD, y + 14); } });
+    blocks.push({ h: 34, draw: (ctx, y) => { ctx.font = '700 22px Sarabun, sans-serif'; ctx.fillStyle = '#0F172A'; ctx.fillText(shop.name, PAD, y + 22); } });
+    blocks.push({ h: 26, draw: (ctx, y) => { ctx.font = '400 15px Sarabun, sans-serif'; ctx.fillStyle = '#334155'; ctx.fillText(`บิลเลขที่ ${billNo} ประจำวันที่ ${Utils.formatDateThai(sale.datetime)} เวลา ${Utils.formatTime(sale.datetime)} น.`, PAD, y + 14); } });
     if (shop.sellerName) {
-      blocks.push({ h: 22, draw: (ctx, y) => { ctx.font = '400 14px Sarabun, sans-serif'; ctx.fillStyle = '#6B7A70'; ctx.fillText(`ผู้ขาย: ${shop.sellerName}`, PAD, y + 12); } });
+      blocks.push({ h: 22, draw: (ctx, y) => { ctx.font = '400 14px Sarabun, sans-serif'; ctx.fillStyle = '#64748B'; ctx.fillText(`ผู้ขาย: ${shop.sellerName}`, PAD, y + 12); } });
     }
-    blocks.push({ h: 20, draw: (ctx, y) => { ctx.strokeStyle = '#E4DECE'; ctx.beginPath(); ctx.moveTo(PAD, y + 8); ctx.lineTo(W - PAD, y + 8); ctx.stroke(); } });
+    blocks.push({ h: 20, draw: (ctx, y) => { ctx.strokeStyle = '#E2E8F0'; ctx.beginPath(); ctx.moveTo(PAD, y + 8); ctx.lineTo(W - PAD, y + 8); ctx.stroke(); } });
     for (const it of sale.items) {
       blocks.push({ h: ITEM_H, draw: (ctx, y) => {
-        ctx.font = '400 16px Sarabun, sans-serif'; ctx.fillStyle = '#17211B';
-        ctx.textAlign = 'left'; ctx.fillText(`${it.name} × ${it.qty} (${it.priceType === 'staff' ? 'จนท.' : 'นทท.'})`, PAD, y + 18);
+        ctx.font = '400 16px Sarabun, sans-serif'; ctx.fillStyle = '#0F172A';
+        ctx.textAlign = 'left'; ctx.fillText(`${it.name} × ${it.qty} (${it.priceType === 'staff' ? 'เจ้าหน้าที่' : 'นักท่องเที่ยว'})`, PAD, y + 18);
         ctx.textAlign = 'right'; ctx.fillText(Utils.moneyPlain(it.subtotal), W - PAD, y + 18);
         ctx.textAlign = 'left';
       }});
     }
-    blocks.push({ h: 20, draw: (ctx, y) => { ctx.strokeStyle = '#E4DECE'; ctx.beginPath(); ctx.moveTo(PAD, y + 8); ctx.lineTo(W - PAD, y + 8); ctx.stroke(); } });
+    blocks.push({ h: 20, draw: (ctx, y) => { ctx.strokeStyle = '#E2E8F0'; ctx.beginPath(); ctx.moveTo(PAD, y + 8); ctx.lineTo(W - PAD, y + 8); ctx.stroke(); } });
     blocks.push({ h: 36, draw: (ctx, y) => {
-      ctx.font = '700 22px Sarabun, sans-serif'; ctx.fillStyle = '#143D27';
+      ctx.font = '700 22px Sarabun, sans-serif'; ctx.fillStyle = '#0F172A';
       ctx.textAlign = 'left'; ctx.fillText('ยอดรวม', PAD, y + 24);
       ctx.textAlign = 'right'; ctx.fillText(Utils.moneyPlain(sale.totalAmount) + ' บาท', W - PAD, y + 24);
       ctx.textAlign = 'left';
     }});
     if (sale.note) {
-      blocks.push({ h: 24, draw: (ctx, y) => { ctx.font = '400 14px Sarabun, sans-serif'; ctx.fillStyle = '#6B7A70'; ctx.fillText('หมายเหตุ: ' + sale.note, PAD, y + 16); } });
+      blocks.push({ h: 24, draw: (ctx, y) => { ctx.font = '400 14px Sarabun, sans-serif'; ctx.fillStyle = '#64748B'; ctx.fillText('หมายเหตุ: ' + sale.note, PAD, y + 16); } });
     }
-    blocks.push({ h: 30, draw: (ctx, y) => { ctx.font = '600 16px Sarabun, sans-serif'; ctx.fillStyle = '#143D27'; ctx.fillText('หลักฐานการโอนเงิน', PAD, y + 20); } });
+    blocks.push({ h: 30, draw: (ctx, y) => { ctx.font = '600 16px Sarabun, sans-serif'; ctx.fillStyle = '#0F172A'; ctx.fillText('หลักฐานการโอนเงิน', PAD, y + 20); } });
 
     const headerH = blocks.reduce((s, b) => s + b.h, 0) + PAD;
     const canvas = document.createElement('canvas');
     canvas.width = W;
     canvas.height = headerH + imgH + PAD;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#FBF8F0'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#F8FAFC'; ctx.fillRect(0, 0, canvas.width, canvas.height);
     let cy = PAD;
     for (const b of blocks) { b.draw(ctx, cy); cy += b.h; }
     ctx.drawImage(img, PAD, cy, W - PAD * 2, imgH);
@@ -224,13 +252,17 @@
       doc.text(`ราคาเจ้าหน้าที่: ${Utils.money(staffTotal)}    ราคานักท่องเที่ยว: ${Utils.money(touristTotal)}`, 40, y);
       y += 18;
 
-      // Sales table
-      const body = currentSales.map((s, i) => {
+      // Sales table — sorted oldest-to-newest so the bill number visibly
+      // resets to 1 each time the date column changes to a new day.
+      const chronological = currentSales.slice().sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+      const billNoMap = dailyBillNumberMap(chronological);
+      const body = chronological.map((s) => {
         const itemCount = s.items.reduce((a, it) => a + it.qty, 0);
         return [
-          i + 1,
+          billNoMap[s.id],
           Utils.formatDateThai(s.datetime) + '\n' + Utils.formatTime(s.datetime) + ' น.',
           itemCount,
+          salePriceTypeLabel(s),
           s.paymentMethod === 'cash' ? 'เงินสด' : 'โอนเงิน',
           Utils.moneyPlain(s.totalAmount)
         ];
@@ -238,12 +270,12 @@
 
       doc.autoTable({
         startY: y,
-        head: [['#', 'วันเวลา', 'จำนวนรายการ', 'ชำระโดย', 'ยอดรวม (บาท)']],
+        head: [['เลขที่บิล', 'วันเวลา', 'จำนวนรายการ', 'ประเภทราคา', 'ชำระโดย', 'ยอดรวม (บาท)']],
         body,
-        styles: { font: 'Sarabun', fontSize: 9, cellPadding: 5, lineColor: [210, 210, 210], lineWidth: 0.5, textColor: [20, 20, 20] },
+        styles: { font: 'Sarabun', fontSize: 8.5, cellPadding: 5, lineColor: [210, 210, 210], lineWidth: 0.5, textColor: [20, 20, 20] },
         headStyles: { fillColor: [238, 238, 235], textColor: [20, 20, 20], font: 'Sarabun', fontStyle: 'bold', lineColor: [190, 190, 190] },
         alternateRowStyles: { fillColor: [250, 250, 248] },
-        columnStyles: { 0: { cellWidth: 26 }, 4: { halign: 'right' } },
+        columnStyles: { 0: { cellWidth: 40 }, 5: { halign: 'right' } },
         margin: { left: 40, right: 40 }
       });
 
@@ -266,12 +298,12 @@
         });
       }
 
-      const slipSales = currentSales.filter(s => s.paymentMethod === 'transfer' && s.slipPhoto);
+      const slipSales = chronological.filter(s => s.paymentMethod === 'transfer' && s.slipPhoto);
       for (const s of slipSales) {
         doc.addPage();
         let py = 40;
         doc.setFont('Sarabun', 'bold'); doc.setFontSize(13);
-        doc.text(`หลักฐานการโอนเงิน — บิลเลขที่ ${s.id}`, 40, py);
+        doc.text(`หลักฐานการโอนเงิน — บิลเลขที่ ${billNoMap[s.id]} ประจำวันที่ ${Utils.formatDateThai(s.datetime)}`, 40, py);
         doc.setFont('Sarabun', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
         py += 18;
         doc.text(Utils.formatDateTimeThai(s.datetime), 40, py);
@@ -279,7 +311,7 @@
         if (shop.sellerName) { doc.text(`ผู้ขาย: ${shop.sellerName}`, 40, py); py += 16; }
         doc.setTextColor(0);
         for (const it of s.items) {
-          doc.text(`${it.name} × ${it.qty} (${it.priceType === 'staff' ? 'จนท.' : 'นทท.'}) = ${Utils.moneyPlain(it.subtotal)} บาท`, 40, py);
+          doc.text(`${it.name} × ${it.qty} (${it.priceType === 'staff' ? 'เจ้าหน้าที่' : 'นักท่องเที่ยว'}) = ${Utils.moneyPlain(it.subtotal)} บาท`, 40, py);
           py += 14;
         }
         doc.setFont('Sarabun', 'bold');

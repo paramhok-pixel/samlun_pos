@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
 <title>ร้านสวัสดิการอุทยานแห่งชาติ — POS</title>
 <meta name="description" content="ระบบขายหน้าร้าน (POS) ออฟไลน์ 100% สำหรับร้านสวัสดิการอุทยานแห่งชาติ">
-<meta name="theme-color" content="#143D27">
+<meta name="theme-color" content="#0F172A">
 <link rel="manifest" href="manifest.json">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
@@ -21,7 +21,7 @@
   <!-- ================= TOP BAR ================= -->
   <header class="topbar">
     <div class="brand">
-      <svg class="brand-mark" viewBox="0 0 24 24" fill="none"><path d="M3 20l6-11 4 6 2-3 6 8H3z" fill="#E09E3E"/><circle cx="18" cy="6" r="2.4" fill="#F5EFE1"/></svg>
+      <svg class="brand-mark" viewBox="0 0 24 24" fill="none"><path d="M3 20l6-11 4 6 2-3 6 8H3z" fill="#F59E0B"/><circle cx="18" cy="6" r="2.4" fill="#F1F5F9"/></svg>
       <span class="screen-title" id="screen-title-text">ขายสินค้า</span>
     </div>
     <div class="topbar-actions" id="topbar-actions">
@@ -188,6 +188,13 @@
         </div>
       </div>
 
+      <div class="section-title">โหมดขาย</div>
+      <div class="card">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="set-sell-only-mode"> โหมดขายไม่ตัดสต๊อก
+        </label>
+      </div>
+
       <div class="section-title">แชร์รายการสินค้า</div>
       <div class="card">
         <p class="hint">ส่งออกเฉพาะรายการสินค้า (พร้อมรูปและราคา) เป็นไฟล์แยก เพื่อแบ่งให้เจ้าหน้าที่คนอื่นนำเข้าใช้ในเครื่องของเขา โดยไม่รวมประวัติการขาย</p>
@@ -299,14 +306,15 @@
 
         <div class="toggle-group" id="pay-method-toggle">
           <button data-pay="cash" class="active">เงินสด</button>
-          <button data-pay="transfer">โอน / พร้อมเพย์</button>
+          <button data-pay="transfer">โอนเงิน</button>
         </div>
 
         <div id="cash-pay-block" style="margin-top:14px;">
           <div class="row-between">
             <span class="section-title" style="margin:0;">รับเงินมา</span>
-            <button class="btn btn-ghost btn-sm" id="btn-exact-pay">รับพอดี</button>
+            <button class="btn btn-ghost btn-sm" id="btn-manual-entry">พิมพ์จำนวนเงิน</button>
           </div>
+          <input type="number" class="input" id="manual-receive-input" inputmode="decimal" placeholder="พิมพ์จำนวนเงินที่รับมา" style="display:none;margin-bottom:10px;">
           <div class="denom-grid" id="denom-grid"></div>
           <button class="btn btn-outline btn-block btn-sm" id="btn-clear-denom">ล้างจำนวนเงินที่รับ</button>
 
@@ -314,7 +322,6 @@
             <div class="lbl">เงินทอน</div>
             <div class="amt" id="change-amt">฿0</div>
           </div>
-          <div class="hint text-center" id="change-breakdown"></div>
         </div>
 
         <div id="transfer-pay-block" style="display:none;margin-top:14px;">
@@ -343,7 +350,7 @@
   <!-- ================= SALE COMPLETE MODAL ================= -->
   <div class="modal-overlay" id="sale-done-modal">
     <div class="modal text-center">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#2D7A48" stroke-width="2" style="width:52px;height:52px;margin:0 auto 8px;"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" style="width:52px;height:52px;margin:0 auto 8px;"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/></svg>
       <h3>บันทึกการขายสำเร็จ</h3>
       <p class="hint" id="sale-done-summary"></p>
       <div class="modal-actions" style="flex-wrap:wrap;">
@@ -415,13 +422,8 @@
         </div>
       </div>
       <div class="field" style="margin-bottom:0;">
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:6px;">
-          <input type="checkbox" id="pf-unlimited-stock"> ไม่จำกัดสต๊อก (ใช้กับสินค้า/บริการที่ขายอย่างเดียว ไม่ต้องนับจำนวน เช่น ค่าเข้าชม)
-        </label>
-        <div id="pf-stock-wrap">
-          <label>จำนวนคงเหลือในคลัง</label>
-          <input type="number" class="input" id="pf-stock" min="0" step="1" inputmode="numeric">
-        </div>
+        <label>จำนวนคงเหลือในคลัง</label>
+        <input type="number" class="input" id="pf-stock" min="0" step="1" inputmode="numeric">
       </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" id="pf-cancel">ยกเลิก</button>

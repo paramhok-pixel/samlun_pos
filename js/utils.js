@@ -139,20 +139,7 @@
   };
 
   // ---------- Denomination helper (Thai Baht) ----------
-  Utils.DENOMS = [1000, 500, 100, 50, 20, 10, 5, 2, 1];
-  Utils.breakdownChange = function (amount) {
-    let remain = Math.round(amount);
-    const parts = [];
-    for (const d of Utils.DENOMS) {
-      if (remain <= 0) break;
-      const count = Math.floor(remain / d);
-      if (count > 0) {
-        parts.push({ denom: d, count });
-        remain -= count * d;
-      }
-    }
-    return parts;
-  };
+  Utils.DENOMS = [1000, 500, 100, 50, 20, 10, 5, 1];
 
   // ---------- Misc ----------
   Utils.debounce = function (fn, wait) {
@@ -169,7 +156,7 @@
   Utils.uid = function () { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); };
 
   const PLACEHOLDER_SVG = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#F5EFE1"/><path d="M30 65l12-16 10 12 8-10 12 14z" fill="#AAB6AC"/><circle cx="36" cy="38" r="7" fill="#AAB6AC"/></svg>`
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="#F1F5F9"/><path d="M30 65l12-16 10 12 8-10 12 14z" fill="#CBD5E1"/><circle cx="36" cy="38" r="7" fill="#CBD5E1"/></svg>`
   );
   Utils.placeholderImg = PLACEHOLDER_SVG;
 

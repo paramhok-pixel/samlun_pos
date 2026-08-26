@@ -8,6 +8,7 @@
     document.getElementById('set-shop-address').value = await DB.getSetting('shopAddress', '');
     document.getElementById('set-seller-name').value = await DB.getSetting('sellerName', '');
     document.getElementById('set-low-stock').value = await DB.getSetting('lowStockThreshold', 5);
+    document.getElementById('set-sell-only-mode').checked = await DB.getSetting('sellOnlyMode', false);
     const logo = await DB.getSetting('shopLogo', null);
     document.getElementById('set-logo-preview').src = logo || Utils.placeholderImg;
   }
@@ -32,6 +33,12 @@
     Utils.toast('บันทึกแล้ว', 'success');
     await Products.refresh();
     document.dispatchEvent(new CustomEvent('products:changed'));
+  }
+
+  async function saveSellOnlyMode(checked) {
+    await DB.setSetting('sellOnlyMode', checked);
+    document.dispatchEvent(new CustomEvent('settings:changed'));
+    Utils.toast(checked ? 'เปิดโหมดขายไม่ตัดสต๊อกแล้ว' : 'ปิดโหมดขายไม่ตัดสต๊อกแล้ว', 'success');
   }
 
   async function handleLogoFile(file) {
@@ -180,6 +187,7 @@
     document.getElementById('set-shop-address').addEventListener('change', saveShopAddress);
     document.getElementById('set-seller-name').addEventListener('change', saveSellerName);
     document.getElementById('set-low-stock').addEventListener('change', saveLowStock);
+    document.getElementById('set-sell-only-mode').addEventListener('change', (e) => saveSellOnlyMode(e.target.checked));
     document.getElementById('set-logo-file').addEventListener('change', (e) => handleLogoFile(e.target.files[0]));
     document.getElementById('set-logo-clear').addEventListener('click', clearLogo);
     document.getElementById('btn-export-products').addEventListener('click', exportProductsOnly);

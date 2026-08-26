@@ -87,7 +87,7 @@
         <div class="info">
           <div class="name">${Utils.escapeHtml(it.name)}</div>
           <div class="meta">${it.qty} ${Utils.escapeHtml(it.unit || '')} × ${Utils.money(it.unitPrice)}
-            <span class="badge ${it.priceType === 'staff' ? 'badge-staff' : 'badge-tourist'}">${it.priceType === 'staff' ? 'จนท.' : 'นทท.'}</span>
+            <span class="badge ${it.priceType === 'staff' ? 'badge-staff' : 'badge-tourist'}">${it.priceType === 'staff' ? 'เจ้าหน้าที่' : 'นักท่องเที่ยว'}</span>
           </div>
         </div>
         <div class="linetotal">${Utils.money(it.subtotal)}</div>
@@ -96,7 +96,7 @@
     const payBlock = sale.paymentMethod === 'cash'
       ? `<div class="summary-row"><span>รับเงินมา</span><span>${Utils.money(sale.received)}</span></div>
          <div class="summary-row"><span>เงินทอน</span><span>${Utils.money(sale.change)}</span></div>`
-      : `<div class="summary-row"><span>ชำระโดย</span><span>โอนเงิน / พร้อมเพย์</span></div>
+      : `<div class="summary-row"><span>ชำระโดย</span><span>โอนเงิน</span></div>
          <div id="slip-detail-area" class="mt-8"><p class="hint">กำลังโหลดภาพ...</p></div>
          <label class="btn btn-ghost btn-block btn-sm mt-8">แนบ/เปลี่ยนรูปสลิป
            <input type="file" accept="image/*" id="sale-detail-slip-file" style="display:none;">
@@ -161,7 +161,7 @@
       sale.voided = true;
       await DB.updateSale(sale);
       for (const it of sale.items) {
-        if (!it.unlimitedStock) await DB.adjustStock(it.productId, it.qty);
+        if (!it.skipStock) await DB.adjustStock(it.productId, it.qty);
       }
       Utils.toast('ยกเลิกรายการขายแล้ว คืนสต๊อกเรียบร้อย', 'success');
       Utils.closeSheet('sale-detail-overlay');

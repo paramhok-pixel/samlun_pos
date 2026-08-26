@@ -14,12 +14,23 @@
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('screen-' + name).classList.add('active');
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-screen') === name));
-    document.getElementById('screen-title-text').textContent = SCREEN_TITLES[name] || '';
+    updateTopbarTitle(name);
     document.getElementById('cart-bar').style.display = (name === 'pos' && POS.getCart().length > 0) ? 'flex' : 'none';
 
     if (name === 'history') History.refresh();
     if (name === 'reports') Reports.refresh();
     window.scrollTo(0, 0);
+  }
+
+  function updateTopbarTitle(name) {
+    const el = document.getElementById('screen-title-text');
+    if (name === 'pos') {
+      el.textContent = POS.getPriceModeLabel();
+      el.classList.add('mode-label');
+    } else {
+      el.textContent = SCREEN_TITLES[name] || '';
+      el.classList.remove('mode-label');
+    }
   }
 
   function bindNav() {
@@ -73,6 +84,7 @@
   document.addEventListener('DOMContentLoaded', () => {
     bindNav();
     bindProductFab();
+    updateTopbarTitle('pos');
     bootstrap();
     registerServiceWorker();
   });
