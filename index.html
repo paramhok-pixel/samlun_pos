@@ -377,9 +377,17 @@
         <label>รูปสินค้า</label>
         <div class="photo-input">
           <img id="pf-photo-preview" class="photo-preview" alt="สินค้า">
-          <div class="photo-actions">
-            <label class="btn btn-ghost btn-sm">ถ่ายรูป/แนบไฟล์<input type="file" accept="image/*" id="pf-photo-file" style="display:none;"></label>
-            <button class="btn btn-danger btn-sm" id="pf-photo-clear">ลบรูป</button>
+         
+          <input type="file" accept="image/*" id="pf-photo-file" style="display:none;">
+          
+          <div class="photo-actions" style="display: flex; flex-wrap: wrap; gap: 5px;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="let f=document.getElementById('pf-photo-file'); f.setAttribute('capture', 'environment'); f.click();">
+              ถ่ายรูป
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="let f=document.getElementById('pf-photo-file'); f.removeAttribute('capture'); f.click();">
+              แนบภาพ
+            </button>
+            <button type="button" class="btn btn-danger btn-sm" id="pf-photo-clear">ลบรูป</button>
           </div>
         </div>
       </div>
